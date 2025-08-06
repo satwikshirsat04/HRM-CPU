@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from puzzle_dataset import PuzzleDataset
 from models.losses import ACTLossHead
 from utils.functions import load_model_class
+import matplotlib.pyplot as plt
 
 # ==== CONFIG ====
 config = SimpleNamespace(
@@ -111,7 +112,9 @@ optimizer = optim.Adam(model_with_loss.parameters(), lr=config.lr)
 
 print("Starting training...")
 
-# ==== TRAIN LOOP ====
+
+# ==== TRAIN LOOP ====--------------------------------------------------------------
+losses = []
 for epoch in range(config.epochs):
     total_loss = 0.0
     total_samples = 0
@@ -145,6 +148,11 @@ for epoch in range(config.epochs):
                 return_keys=["logits", "q_halt_logits"]
             )
 
+            if epoch == 0 and step == 0:  # Visualize only for first batch of first epoch
+                predicted = torch.argmax(detached_outputs["logits"], dim=-1)
+                print("[Predicted]:", predicted[0][:20].tolist())  # First 20 tokens
+                print("[GroundTruth]:", batch["labels"][0][:20].tolist())
+
             # Check for NaN loss
             if torch.isnan(loss):
                 print(f"[Warning] NaN loss detected at step {step}, skipping...")
@@ -177,10 +185,21 @@ for epoch in range(config.epochs):
 
     avg_loss = total_loss / total_samples
     print(f"[Epoch {epoch + 1}] Processed {batch_count} batches, Avg Loss: {avg_loss:.4f}")
+    losses.append(avg_loss)
 
-# Save model
+# Save model----------------------------------------------------------------------------------------------
 try:
     torch.save(model.state_dict(), "hrm_cpu_model.pth")
     print("✅ Model training complete and saved.")
 except Exception as e:
     print(f"✗ Model saving failed: {e}")
+
+# Plotting loss over epochs
+plt.plot(losses, label="Training Loss", marker='o')
+plt.title("Training Loss over Epochs")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.grid(True)
+plt.legend()
+plt.show()
+plt.savefig("training_loss.png")
