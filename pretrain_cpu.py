@@ -24,6 +24,8 @@ config = SimpleNamespace(
     epochs=2,
     lr=1e-3,
     seed=42,
+    test_set_mode=False,
+    epochs_per_iter=1,
 
     # Model parameters
     seq_len=64,
