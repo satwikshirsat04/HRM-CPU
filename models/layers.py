@@ -124,7 +124,7 @@ class Attention(nn.Module):
         attn_output = self._cpu_attention(query, key, value)
         
         # attn_output: [batch_size, seq_len, output_size]
-        attn_output = attn_output.view(batch_size, seq_len, self.output_size)
+        attn_output = attn_output.reshape(batch_size, seq_len, self.output_size)
         return self.o_proj(attn_output)
 
     def _cpu_attention(self, query, key, value):

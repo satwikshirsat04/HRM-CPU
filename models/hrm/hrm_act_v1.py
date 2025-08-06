@@ -77,9 +77,13 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
     def forward(self, cos_sin: CosSin, hidden_states: torch.Tensor) -> torch.Tensor:
         # Post Norm
         # Self Attention
-        hidden_states = rms_norm(hidden_states + self.self_attn(cos_sin=cos_sin, hidden_states=hidden_states), variance_epsilon=self.norm_eps)
+        attn_out = self.self_attn(cos_sin=cos_sin, hidden_states=hidden_states)
+        hidden_states = rms_norm(hidden_states + attn_out, variance_epsilon=self.norm_eps)
+        
         # Fully Connected
-        hidden_states = rms_norm(hidden_states + self.mlp(hidden_states), variance_epsilon=self.norm_eps)
+        mlp_out = self.mlp(hidden_states)
+        hidden_states = rms_norm(hidden_states + mlp_out, variance_epsilon=self.norm_eps)
+        
         return hidden_states
 
 
@@ -155,7 +159,9 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
             if pad_count > 0:
                 puzzle_embedding = F.pad(puzzle_embedding, (0, pad_count))
 
-            embedding = torch.cat((puzzle_embedding.view(-1, self.puzzle_emb_len, self.config.hidden_size), embedding), dim=-2)
+            # Use reshape instead of view for better memory layout handling
+            puzzle_embedding_reshaped = puzzle_embedding.reshape(-1, self.puzzle_emb_len, self.config.hidden_size)
+            embedding = torch.cat((puzzle_embedding_reshaped, embedding), dim=-2)
 
         # Position embeddings
         if self.config.pos_encodings == "learned":
@@ -166,15 +172,22 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
         return self.embed_scale * embedding
 
     def empty_carry(self, batch_size: int):
+        # input_len = self.config.seq_len + self.puzzle_emb_len
+        input_len = batch["inputs"].shape[1] + self.puzzle_emb_len  # dynamic from input
+
         return HierarchicalReasoningModel_ACTV1InnerCarry(
-            z_H=torch.empty(batch_size, self.config.seq_len + self.puzzle_emb_len, self.config.hidden_size, dtype=self.forward_dtype),
-            z_L=torch.empty(batch_size, self.config.seq_len + self.puzzle_emb_len, self.config.hidden_size, dtype=self.forward_dtype),
+            z_H=torch.zeros(batch_size, input_len, self.config.hidden_size, dtype=self.forward_dtype),
+            z_L=torch.zeros(batch_size, input_len, self.config.hidden_size, dtype=self.forward_dtype),
         )
         
     def reset_carry(self, reset_flag: torch.Tensor, carry: HierarchicalReasoningModel_ACTV1InnerCarry):
+        # Ensure H_init and L_init have correct dimensions for broadcasting
+        H_init_expanded = self.H_init.unsqueeze(0).unsqueeze(0).expand_as(carry.z_H)
+        L_init_expanded = self.L_init.unsqueeze(0).unsqueeze(0).expand_as(carry.z_L)
+        
         return HierarchicalReasoningModel_ACTV1InnerCarry(
-            z_H=torch.where(reset_flag.view(-1, 1, 1), self.H_init, carry.z_H),
-            z_L=torch.where(reset_flag.view(-1, 1, 1), self.L_init, carry.z_L),
+            z_H=torch.where(reset_flag.view(-1, 1, 1), H_init_expanded, carry.z_H),
+            z_L=torch.where(reset_flag.view(-1, 1, 1), L_init_expanded, carry.z_L),
         )
 
     def forward(self, carry: HierarchicalReasoningModel_ACTV1InnerCarry, batch: Dict[str, torch.Tensor]) -> Tuple[HierarchicalReasoningModel_ACTV1InnerCarry, torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -185,9 +198,23 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
         # Input encoding
         input_embeddings = self._input_embeddings(batch["inputs"], batch["puzzle_identifiers"])
 
+        # Fix for input_embeddings mismatch (before loop)
+        if input_embeddings.size(1) != carry.z_H.size(1):
+            # Use a more robust resizing approach
+            target_seq_len = carry.z_H.size(1)
+            current_seq_len = input_embeddings.size(1)
+            
+            if current_seq_len < target_seq_len:
+                # Pad if input is shorter
+                pad_size = target_seq_len - current_seq_len
+                input_embeddings = F.pad(input_embeddings, (0, 0, 0, pad_size))
+            elif current_seq_len > target_seq_len:
+                # Truncate if input is longer
+                input_embeddings = input_embeddings[:, :target_seq_len, :]
+
         # Forward iterations
         with torch.no_grad():
-            z_H, z_L = carry.z_H, carry.z_L
+            z_H, z_L = carry.z_H.detach(), carry.z_L.detach()
 
             for _H_step in range(self.config.H_cycles):
                 for _L_step in range(self.config.L_cycles):

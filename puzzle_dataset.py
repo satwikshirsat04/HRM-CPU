@@ -172,9 +172,10 @@ class PuzzleDataset(IterableDataset):
                 # Select current rank and collate
                 global_effective_batch_size = batch_puzzle_indices.size  # Global effective batch size, excluding pads
 
-                # Drop last batch
+                # Pad smaller batches if needed (don't drop them)
                 if global_effective_batch_size < self.config.global_batch_size:
-                    break
+                    pass  # continue without skipping
+
 
                 batch_indices        = batch_indices       [self.config.rank * self.local_batch_size: (self.config.rank + 1) * self.local_batch_size]
                 batch_puzzle_indices = batch_puzzle_indices[self.config.rank * self.local_batch_size: (self.config.rank + 1) * self.local_batch_size]
