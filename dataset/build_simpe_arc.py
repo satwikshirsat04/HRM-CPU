@@ -80,7 +80,10 @@ def create_simple_arc_dataset():
         
         for inp, out in puzzle_list:
             inputs.append(inp)
-            labels.append(out)
+            # labels.append(out)
+            out_masked = out.copy().astype(np.int16)  # or np.int32
+            out_masked[out_masked == 0] = -100
+            labels.append(out_masked)
             puzzle_identifiers.append(1)  # All puzzles have identifier 1
             example_id += 1
             puzzle_id += 1
@@ -101,7 +104,7 @@ def create_simple_arc_dataset():
             vocab_size=12,  # PAD + EOS + "0" ... "9"
             
             pad_id=0,
-            ignore_label_id=0,
+            ignore_label_id=-100,
             
             blank_identifier_id=0,
             num_puzzle_identifiers=2,  # 0 (blank) + 1 (puzzle)
