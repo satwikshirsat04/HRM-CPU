@@ -103,7 +103,7 @@ project_root/
 ---
 
 ## 📈 Summary:
-✅ The model is learning
-✅ Token accuracy is strong (80%)
-✅ Exact match accuracy is improving (50%)
-📉 Loss is dropping consistently
+- ✅ The model is learning
+- ✅ Token accuracy is strong (80%)
+- ✅ Exact match accuracy is improving (50%),
+- 📉 Loss is dropping consistently
