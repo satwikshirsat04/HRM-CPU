@@ -109,8 +109,8 @@ class Attention(nn.Module):
         # hidden_states: [bs, seq_len, num_heads, head_dim]
         qkv = self.qkv_proj(hidden_states)
 
-        # Split head
-        qkv = qkv.view(batch_size, seq_len, self.num_heads + 2 * self.num_key_value_heads, self.head_dim)
+        # Split head - use reshape instead of view for better compatibility
+        qkv = qkv.reshape(batch_size, seq_len, self.num_heads + 2 * self.num_key_value_heads, self.head_dim)
         query = qkv[:, :, :self.num_heads]
         key = qkv[:, :, self.num_heads: self.num_heads + self.num_key_value_heads]
         value = qkv[:, :, self.num_heads + self.num_key_value_heads:]
@@ -123,7 +123,7 @@ class Attention(nn.Module):
         # CPU-friendly attention (replacing flash_attn)
         attn_output = self._cpu_attention(query, key, value)
         
-        # attn_output: [batch_size, seq_len, output_size]
+        # attn_output: [batch_size, seq_len, output_size] - use reshape instead of view
         attn_output = attn_output.reshape(batch_size, seq_len, self.output_size)
         return self.o_proj(attn_output)
 

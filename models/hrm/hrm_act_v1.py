@@ -171,9 +171,9 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
         # Scale
         return self.embed_scale * embedding
 
-    def empty_carry(self, batch_size: int):
-        # input_len = self.config.seq_len + self.puzzle_emb_len
-        input_len = batch["inputs"].shape[1] + self.puzzle_emb_len  # dynamic from input
+    def empty_carry(self, batch_size: int, seq_len: int):
+        # FIXED: Use parameters instead of referencing undefined batch
+        input_len = seq_len + self.puzzle_emb_len
 
         return HierarchicalReasoningModel_ACTV1InnerCarry(
             z_H=torch.zeros(batch_size, input_len, self.config.hidden_size, dtype=self.forward_dtype),
@@ -185,9 +185,12 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
         H_init_expanded = self.H_init.unsqueeze(0).unsqueeze(0).expand_as(carry.z_H)
         L_init_expanded = self.L_init.unsqueeze(0).unsqueeze(0).expand_as(carry.z_L)
         
+        # Use reshape instead of view for better compatibility
+        reset_flag_reshaped = reset_flag.reshape(-1, 1, 1)
+        
         return HierarchicalReasoningModel_ACTV1InnerCarry(
-            z_H=torch.where(reset_flag.view(-1, 1, 1), H_init_expanded, carry.z_H),
-            z_L=torch.where(reset_flag.view(-1, 1, 1), L_init_expanded, carry.z_L),
+            z_H=torch.where(reset_flag_reshaped, H_init_expanded, carry.z_H),
+            z_L=torch.where(reset_flag_reshaped, L_init_expanded, carry.z_L),
         )
 
     def forward(self, carry: HierarchicalReasoningModel_ACTV1InnerCarry, batch: Dict[str, torch.Tensor]) -> Tuple[HierarchicalReasoningModel_ACTV1InnerCarry, torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -254,9 +257,10 @@ class HierarchicalReasoningModel_ACTV1(nn.Module):
 
     def initial_carry(self, batch: Dict[str, torch.Tensor]):
         batch_size = batch["inputs"].shape[0]
+        seq_len = batch["inputs"].shape[1]  # FIXED: Get seq_len from batch
 
         return HierarchicalReasoningModel_ACTV1Carry(
-            inner_carry=self.inner.empty_carry(batch_size),  # Empty is expected, it will be reseted in first pass as all sequences are halted.
+            inner_carry=self.inner.empty_carry(batch_size, seq_len),  # FIXED: Pass seq_len
             
             steps=torch.zeros((batch_size, ), dtype=torch.int32),
             halted=torch.ones((batch_size, ), dtype=torch.bool),  # Default to halted
@@ -270,7 +274,12 @@ class HierarchicalReasoningModel_ACTV1(nn.Module):
         
         new_steps = torch.where(carry.halted, 0, carry.steps)
 
-        new_current_data = {k: torch.where(carry.halted.view((-1, ) + (1, ) * (batch[k].ndim - 1)), batch[k], v) for k, v in carry.current_data.items()}
+        # Use reshape instead of view to avoid stride issues
+        new_current_data = {}
+        for k, v in carry.current_data.items():
+            halted_shape = (-1, ) + (1, ) * (batch[k].ndim - 1)
+            halted_reshaped = carry.halted.reshape(halted_shape)
+            new_current_data[k] = torch.where(halted_reshaped, batch[k], v)
 
         # Forward inner model
         new_inner_carry, logits, (q_halt_logits, q_continue_logits) = self.inner(new_inner_carry, new_current_data)
