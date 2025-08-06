@@ -20,7 +20,7 @@ config = SimpleNamespace(
     epochs_per_iter=1,
 
     batch_size=2,
-    epochs=2,
+    epochs=5,
     lr=1e-3,
     seed=42,
 
