@@ -48,3 +48,38 @@ Sample Predictions: Visual comparison of predictions vs ground truth
 Best Model: Automatically saves the model with highest exact match accuracy
 Final Model: Saves the model after all training
 Training History: JSON file with all metrics for analysis
+
+## 📊 Training Analysis:
+🎯 Key Observations:
+
+Loss is Decreasing: From 5.26 → 2.89 (45% improvement!)
+Token Accuracy is Learning: From 11% → 80% (7x improvement!)
+Model is Making Progress: The prediction vs ground truth plot shows the model is learning patterns
+
+## 🔍 Detailed Metrics Breakdown:
+Token Accuracy Progression:
+
+Early Training (Epochs 1-8): Volatile learning (11% → 48%)
+Breakthrough (Epochs 9-10): Major improvement (85%+ accuracy)
+Consolidation (Epochs 11-20): Stabilizing around 60-80%
+
+Loss Reduction:
+
+Consistent downward trend despite some fluctuations
+Best performance: Epoch 19 (Loss: 2.89, Token Accuracy: 80%)
+
+## 🤔 Interesting Pattern - Exact Match Accuracy:
+The exact match accuracy stuck at 50% reveals something important about your dataset and model behavior:
+Why 50% Exact Match?
+
+Your batch size is 2, so exact match = 0.5 means 1 out of 2 sequences is perfect
+This suggests the model is consistently solving one type of puzzle but struggling with the other
+Looking at your dataset creation code, you have two puzzle types:
+
+Copy pattern (input → output)
+Increment pattern (input → input+1 with wraparound)
+
+
+
+## Hypothesis: 
+The model has likely learned the copy pattern perfectly but is still struggling with the increment pattern.
