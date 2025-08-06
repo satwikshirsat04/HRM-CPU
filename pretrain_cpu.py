@@ -153,6 +153,23 @@ for epoch in range(config.epochs):
                 print("[Predicted]:", predicted[0][:20].tolist())  # First 20 tokens
                 print("[GroundTruth]:", batch["labels"][0][:20].tolist())
 
+                # ==== PLOT PREDICTION vs GROUND TRUTH ====
+                gt = batch["labels"][0][:50].cpu().tolist()
+                pred = predicted[0][:50].cpu().tolist()
+
+                plt.figure(figsize=(12, 3))
+                plt.plot(gt, label="Ground Truth", marker='o')
+                plt.plot(pred, label="Prediction", marker='x')
+                plt.title("First Sample: Prediction vs Ground Truth")
+                plt.xlabel("Token Index")
+                plt.ylabel("Token ID")
+                plt.legend()
+                plt.grid(True)
+                plt.tight_layout()
+                plt.savefig("prediction_vs_groundtruth.png")
+                plt.close()
+                print("🖼️ Saved image: prediction_vs_groundtruth.png")
+
             # Check for NaN loss
             if torch.isnan(loss):
                 print(f"[Warning] NaN loss detected at step {step}, skipping...")
