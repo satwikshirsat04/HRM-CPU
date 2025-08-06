@@ -4,17 +4,17 @@ loss:
   loss_type: stablemax_cross_entropy
 
 halt_exploration_prob: 0.1
-halt_max_steps: 16
+halt_max_steps: 4  # Reduced from 16 for faster CPU training
 
-H_cycles: 2
-L_cycles: 2
+H_cycles: 1  # Reduced from 2
+L_cycles: 1  # Reduced from 2
 
-H_layers: 4
-L_layers: 4
+H_layers: 2  # Reduced from 4
+L_layers: 2  # Reduced from 4
 
-hidden_size: 512
-num_heads: 8  # min(2, hidden_size // 64)
-expansion: 4
+hidden_size: 256  # Reduced from 512 for CPU
+num_heads: 4  # Reduced from 8
+expansion: 2  # Reduced from 4
 
 puzzle_emb_ndim: ${.hidden_size}
 

@@ -2,7 +2,6 @@ from typing import Union
 
 import torch
 from torch import nn
-import torch.distributed as dist
 from torch.optim.optimizer import Optimizer, ParamsT
 
 from models.common import trunc_normal_init_
@@ -43,7 +42,7 @@ class CastedSparseEmbeddingSignSGD_Distributed(Optimizer):
         self,
         params: ParamsT,
 
-        world_size: int,
+        world_size: int = 1,  # Default to 1 for single-process training
         lr: Union[float, torch.Tensor] = 1e-3,
         weight_decay: float = 1e-2,
     ):
@@ -82,40 +81,30 @@ class CastedSparseEmbeddingSignSGD_Distributed(Optimizer):
             assert local_ids is not None
             assert weights is not None
         
-            # Apply SignSGD
-            # Adam ≈ SignSGD if gradient is very sparse
-            _sparse_emb_signsgd_dist(
+            # Apply SignSGD (CPU version without distributed)
+            _sparse_emb_signsgd_cpu(
                 local_weights_grad,
                 local_ids,
                 weights,
                 
                 lr=group["lr"],
-                weight_decay=group["weight_decay"],
-                world_size=group["world_size"]
+                weight_decay=group["weight_decay"]
             )
 
 
-def _sparse_emb_signsgd_dist(
+def _sparse_emb_signsgd_cpu(
     local_weights_grad: torch.Tensor,
     local_ids: torch.Tensor,
     weights: torch.Tensor,
     
     lr: float,
-    weight_decay: float,
-    world_size: int
+    weight_decay: float
 ) -> None:
     N, D = local_weights_grad.shape
     
-    # All-gather
+    # No distributed training, so just use local gradients
     all_weights_grad = local_weights_grad
     all_ids = local_ids
-
-    if world_size > 1:
-        all_weights_grad = torch.empty((world_size * N, D), dtype=local_weights_grad.dtype, device=local_weights_grad.device)
-        all_ids = torch.empty(world_size * N,               dtype=local_ids.dtype,          device=local_ids.device)
-    
-        dist.all_gather_into_tensor(all_weights_grad, local_weights_grad)
-        dist.all_gather_into_tensor(all_ids,          local_ids)
 
     # Unique
     grad_ids, inv = all_ids.unique(return_inverse=True)
@@ -129,4 +118,3 @@ def _sparse_emb_signsgd_dist(
     p.mul_(1.0 - lr * weight_decay).add_(torch.sign(grad), alpha=-lr)
 
     # Write updated slices back
-    weights[grad_ids] = p
