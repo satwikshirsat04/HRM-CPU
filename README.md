@@ -35,13 +35,16 @@ Adjust model size (more layers/hidden dimensions)
 Dataset Expansion: Create more diverse puzzle patterns
 Monitor Metrics: Track accuracy alongside loss
 
-## 💾 Model Successfully Saved:
-Your trained model is saved as hrm_cpu_model.pth and ready for evaluation or further training.
-Would you like me to help you:
+## 📊 Enhanced Visualizations:
 
-Extend the training for more epochs?
-Add evaluation metrics (accuracy, exact match)?
-Create more diverse training patterns?
-Set up model evaluation on the test set?
+Training Loss: Shows learning progress
+Token Accuracy: Per-token correctness over time
+Exact Match Accuracy: Complete sequence correctness
+Combined View: Both accuracies on one plot
+Sample Predictions: Visual comparison of predictions vs ground truth
 
-The foundation is solid - your HRM model is learning! 🎯
+## 🏆 Model Saving Strategy:
+
+Best Model: Automatically saves the model with highest exact match accuracy
+Final Model: Saves the model after all training
+Training History: JSON file with all metrics for analysis
