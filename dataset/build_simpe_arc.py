@@ -79,11 +79,12 @@ def create_simple_arc_dataset():
         puzzle_id = 0
         
         for inp, out in puzzle_list:
-            inputs.append(inp)
-            # labels.append(out)
-            out_masked = out.copy().astype(np.int16)  # or np.int32
+            inputs.append(inp.astype(np.int32)) 
+
+            out_masked = out.copy().astype(np.int32)  # or np.int32
             out_masked[out_masked == 0] = -100
             labels.append(out_masked)
+
             puzzle_identifiers.append(1)  # All puzzles have identifier 1
             example_id += 1
             puzzle_id += 1
@@ -92,8 +93,11 @@ def create_simple_arc_dataset():
         group_indices.append(puzzle_id)
         
         # Save arrays
-        np.save(os.path.join(split_dir, "all__inputs.npy"), np.stack(inputs))
-        np.save(os.path.join(split_dir, "all__labels.npy"), np.stack(labels))
+        # np.save(os.path.join(split_dir, "all__inputs.npy"), np.stack(inputs))
+        # np.save(os.path.join(split_dir, "all__labels.npy"), np.stack(labels))
+        np.save(os.path.join(split_dir, "all__inputs.npy"), np.stack(inputs).astype(np.int32))
+        np.save(os.path.join(split_dir, "all__labels.npy"), np.stack(labels).astype(np.int32))
+
         np.save(os.path.join(split_dir, "all__puzzle_identifiers.npy"), np.array(puzzle_identifiers, dtype=np.int32))
         np.save(os.path.join(split_dir, "all__puzzle_indices.npy"), np.array(puzzle_indices, dtype=np.int32))
         np.save(os.path.join(split_dir, "all__group_indices.npy"), np.array(group_indices, dtype=np.int32))
